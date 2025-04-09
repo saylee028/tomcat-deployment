@@ -1,1 +1,41 @@
+pipeline {
+    agent any
+
+    environment {
+        SSH_KEY = "/var/lib/jenkins/.ssh/jenkins-key.pem"         // Jenkins private key
+        EC2_USER = "ec2-user"
+        EC2_HOST = "51.21.201.153"
+        WAR_NAME = "sample.war"                                   // Your .war file name
+        TOMCAT_PATH = "/opt/apache-tomcat-9.0.85/webapps"
+        REPO_URL = "https://github.com/saylee028/tomcat-deployment.git" // Replace with your repo
+    }
+
+    stages {
+        stage('Clone Git Repo') {
+            steps {
+                git branch: 'main', url: "${REPO_URL}"
+            }
+        }
+
+        stage('Deploy WAR to Tomcat') {
+            steps {
+                echo "Deploying WAR to Tomcat server..."
+                sh """
+                    scp -i \$SSH_KEY \$WORKSPACE/\$WAR_NAME \$EC2_USER@\$EC2_HOST:\$TOMCAT_PATH/
+                """
+            }
+        }
+
+        stage('Restart Tomcat') {
+            steps {
+                echo "Restarting Tomcat on remote server..."
+                sh """
+                    ssh -i \$SSH_KEY \$EC2_USER@\$EC2_HOST '/opt/apache-tomcat-9.0.85/bin/shutdown.sh'
+                    sleep 5
+                    ssh -i \$SSH_KEY \$EC2_USER@\$EC2_HOST '/opt/apache-tomcat-9.0.85/bin/startup.sh'
+                """
+            }
+        }
+    }
+}
 
